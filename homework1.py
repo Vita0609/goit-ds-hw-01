@@ -1,7 +1,7 @@
-
 from collections import UserDict
 from datetime import datetime, date, timedelta
 import pickle
+from abc import ABC, abstractmethod
 
 def input_error(func):
     def inner(*args, **kwargs):
@@ -18,10 +18,62 @@ def input_error(func):
 
 @input_error
 def parse_input(user_input):
-        cmd, *args = user_input.split()
-        cmd = cmd.strip().lower()
-        return cmd, *args
-        
+    cmd, *args = user_input.split()
+    cmd = cmd.strip().lower()
+    return cmd, *args
+
+# Абстрактний базовий клас для користувальницьких уявлень
+class UserView(ABC):
+    @abstractmethod
+    def show_message(self, message: str):
+        pass
+    
+    @abstractmethod
+    def show_contact(self, contact):
+        pass
+    
+    @abstractmethod
+    def show_all_contacts(self, contacts):
+        pass
+    
+    @abstractmethod
+    def show_birthday(self, birthday):
+        pass
+
+    @abstractmethod
+    def show_upcoming_birthdays(self, birthdays):
+        pass
+
+# Реалізація для консолі
+class ConsoleUserView(UserView):
+    def show_message(self, message: str):
+        print(message)
+    
+    def show_contact(self, contact):
+        if contact is None:
+            self.show_message("Contact not found.")
+        else:
+            self.show_message(str(contact))
+
+    def show_all_contacts(self, contacts):
+        if not contacts:
+            self.show_message("No contacts available.")
+        else:
+            for contact in contacts:
+                self.show_message(str(contact))
+
+    def show_birthday(self, birthday):
+        if birthday is None:
+            self.show_message("Birthday not found.")
+        else:
+            self.show_message(f"Birthday: {birthday}")
+    
+    def show_upcoming_birthdays(self, birthdays):
+        if not birthdays:
+            self.show_message("No upcoming birthdays.")
+        else:
+            for birthday in birthdays:
+                self.show_message(f"{birthday['name']}: {birthday['congratulation_date']}")
 
 class Field:
     def __init__(self, value):
@@ -31,14 +83,13 @@ class Field:
         return str(self.value)
 
 class Name(Field):
-
     pass
 
 class Phone(Field):
     def __init__(self, value):
         super().__init__(value)
         if len(value) != 10 or not value.isdigit():
-             raise ValueError("Номер повинен містити 10 цифр")
+            raise ValueError("Номер повинен містити 10 цифр")
         
 class Birthday(Field):
     def __init__(self, value):
@@ -64,8 +115,8 @@ class Record:
     def remove_phone(self, remnum):
         for phone in self.phones:
             if phone.value == remnum:
-                 self.phones.remove(phone)
-                 return f"Запис з номером '{remnum}' видалено."
+                self.phones.remove(phone)
+                return f"Запис з номером '{remnum}' видалено."
         return f"Запис з номером '{remnum}' не знайдено."
 
     def edit_phone(self, oldnum, newnum):
@@ -162,8 +213,6 @@ def change_contact(args, book: AddressBook):
             return f'Contact {name} was updated'
     return f"The number you are trying to change doesn't exist"
     
-    
-
 @input_error
 def show_phone(args, book: AddressBook):
     name, *_ = args
@@ -177,7 +226,7 @@ def show_all(book: AddressBook):
             result.append(f'{value}')
         elif value.birthday != None:
             result.append(f'{value}; birthday: {value.birthday}')
-    return '\n'.join(result)
+    return result
 
 @input_error
 def add_birthday(args, book: AddressBook):
@@ -218,10 +267,11 @@ def load_data(filename="addressbook.pkl"):
     except FileNotFoundError:
         return AddressBook()
 
-
 def main():
     book = load_data()
+    view = ConsoleUserView()
     print("Welcome to the assistant bot!")
+    
     while True:
         user_input = input("Enter a command: ")
         command, *args = parse_input(user_input)
@@ -231,23 +281,27 @@ def main():
             save_data(book)
             break
         elif command == "hello":
-            print("How can I help you?")
+            view.show_message("How can I help you?")
         elif command == "add":
-            print(add_contact(args, book))
+            view.show_message(add_contact(args, book))
         elif command == "change":
-            print(change_contact(args, book))
+            view.show_message(change_contact(args, book))
         elif command == "phone":
-            print(show_phone(args, book))
+            contact = show_phone(args, book)
+            view.show_contact(contact)
         elif command == "all":
-            print(show_all(book))
+            contacts = show_all(book)
+            view.show_all_contacts(contacts)
         elif command == "add-birthday":
-            print(add_birthday(args, book))
+            view.show_message(add_birthday(args, book))
         elif command == "show-birthday":
-            print(show_birthday(args, book))
+            birthday = show_birthday(args, book)
+            view.show_birthday(birthday)
         elif command == "birthdays":
-            print(birthdays(book))
+            birthdays = birthdays(book)
+            view.show_upcoming_birthdays(birthdays)
         else:
-            print("Invalid command.")
+            view.show_message("Invalid command.")
 
 if __name__ == "__main__":
     main()
